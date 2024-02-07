@@ -2,14 +2,9 @@
 #			FIGURE 1 Ecol Lett 22nd May 2023 
 #====================================================================
 
-dev.off()
-rm(list=ls())
 
-library(ggplot2)
-library(popbio)
-library(ggridges)
-library(viridis)
-library(reshape2)
+source("setup.R")
+
 
 data(monkeyflower)
 mim<- subset(monkeyflower, species == "cardinalis" &
