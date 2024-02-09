@@ -1,60 +1,21 @@
-#################################################################
-# 		GABRIEL SANTOS' THESIS - CHAPTER 1
-# To buffer or to be labile? A framework 1 to disentangle demographic 
-#		patterns and evolutionary processes
-#
-#		wrote by Gabriel Santos 07 Jul 2022 
-#################################################################
+# Import necessary packages and helper functions.
 
 source("setup.R")
-
-#=======================================================================#
-#			DATA LOADING							#
-#=======================================================================#
-
-# setwd("C:/Artigos e resumos publicados submetidos ideias/Submetidos/Demographic buffering - framework")
-
-#load("COMADRE_v.2.0.1.RData")
-load("COMADRE_v.3.0.0.RData")
-
-#Check if is the currently version
-comadre$version
-
-#Mammals at Comadre
-comadre$metadata %>%
-  as_tibble()%>%
-  filter(Class == "Mammalia") %>%
-  distinct(SpeciesAccepted)
-
-#=======================================================================#
-#		AUTOMATIZATE and AUXILIARY FUNCTIONS				#
-#=======================================================================#
-
-#Load functions to perform analyses and automatizate the process
-
-#file.edit("Script and data/Functions-Automatization.R")
 source("functions.R")
 
-# Main functions required:
-# getMatA 		 - Return a list of MatA available per population
-# there.is.na 	 - Verify missing value occurrences(Zero doens't count)
-# check 		 - An easy way to check the population mean value
-# stoch.sens_mean - Stochastic elasticity in respect of mean value
-# stoch.sens_sig  - Stochastic elasticity in respect of variance
-# array_to_matrix - Transform an array in a list of matrices
-# reverselog_trans - Important step to plot negative values in log scale
-# Bio_meaning     - Give a biological meaning for each matrix element
-# Max_var_scale   - Correct Coefficient of variation by the maximum variance possible
-# mysec - Automatize the extraction of the self-second derivatives
 
-#=======================================================================#
-#			DATA FILTERING							#
-#=======================================================================#
+# Import data.
 
-#Giving IDs for each matrix
+load("COMADRE_v.3.0.0.RData")
+
+
+#Give IDs for each matrix
+
 comadre$metadata$ID<-1:dim(comadre$metadata)[1]
 
-#
+
+# Filter data
+
 Mammals.sub<-comadre$metadata %>%
   filter(MatrixCriteriaAge == "Yes")%>%as.tibble()%>%
   filter(MatrixFec == "Yes")%>%
@@ -76,9 +37,8 @@ Mammals.all<-comadre$metadata %>%
   filter(n > 2)%>%print()
 
 
-#-----------------------------------------------------------
-#	NEW WAY TO GET MATRICES
-#-----------------------------------------------------------
+# Helper function to extract matrices. 
+
 getAs.from.IDlist<-function(X){
   leng<-as.numeric(str_split(X, " ", n = Inf)[[1]])
   mxs<-NULL
@@ -86,68 +46,63 @@ getAs.from.IDlist<-function(X){
     mxs[[i]]<-comadre$mat[leng[i]][[1]]$matA}
   mxs<-mxs[unlist(there.is.na(mxs))]
   return(mxs)}
-#-----------------------------------------------------------
 
 
-#=================================================================================#
-#		DEMOGRAPHIC BUFFERING-LABILITY CONTINUUM CONSTRUCTION
-#=================================================================================#
 
-DB.DL.all<-mxs<-NULL
+# Quantify measures of demographic buffering
+
+DB.all<-mxs<-NULL
 
 for (i in 1:dim(Mammals.all)[1]){
   print(i)
   tryCatch({
-    # mxs<-replicate(100,stoch.sens_mean(getAs.from.IDlist(Mammals.all$IDs[i])))
-    #I decide to standardize the usage of stoch.sens_mean to do not imply in bias in the variance
-    #Rember that variance is determined by sampled size
     mxs<-replicate(50,stoch.sens_mean(sample(getAs.from.IDlist(Mammals.all$IDs[i]))[1:3]))
   },error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
   tryCatch({
-    DB.DL.all$E_Smean[i]<-mean(unlist(lapply(array_to_matrix(mxs),sum)))
-    DB.DL.all$E_Smean.SD[i]<-sd(1-unlist(lapply(array_to_matrix(mxs),sum)))
+    DB.all$E_Smean[i]<-mean(unlist(lapply(array_to_matrix(mxs),sum)))
+    DB.all$E_Smean.SD[i]<-sd(1-unlist(lapply(array_to_matrix(mxs),sum)))
   },error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
   tryCatch({
-    DB.DL.all$Lambda[i]<-lambda(mean(getAs.from.IDlist(Mammals.all$IDs[i])))
-    DB.DL.all$Generation.time[i]<-generation.time(mean(getAs.from.IDlist(Mammals.all$IDs[i])))
-    DB.DL.all$resilience.999[i]<- convt(mean(getAs.from.IDlist(Mammals.all$IDs[i])), accuracy=.01)[1]
-    DB.DL.all$resilience.90[i]<- convt(mean(getAs.from.IDlist(Mammals.all$IDs[i])), accuracy=.1)[1]
-    DB.DL.all$resilience.damping[i]<-damping.ratio(mean(getAs.from.IDlist(Mammals.all$IDs[i])))
+    DB.all$Lambda[i]<-lambda(mean(getAs.from.IDlist(Mammals.all$IDs[i])))
+    DB.all$Generation.time[i]<-generation.time(mean(getAs.from.IDlist(Mammals.all$IDs[i])))
+    DB.all$resilience.999[i]<- convt(mean(getAs.from.IDlist(Mammals.all$IDs[i])), accuracy=.01)[1]
+    DB.all$resilience.90[i]<- convt(mean(getAs.from.IDlist(Mammals.all$IDs[i])), accuracy=.1)[1]
+    DB.all$resilience.damping[i]<-damping.ratio(mean(getAs.from.IDlist(Mammals.all$IDs[i])))
   },error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
   mxs<-NULL
 }
 
-DB.DL.all<-do.call(cbind.data.frame,DB.DL.all)
-DB.DL.all<-cbind(as.data.frame(Mammals.all[,-4]),DB.DL.all)
-DB.DL.all$E_Smean.SE<-DB.DL.all$E_Smean.SD/sqrt(DB.DL.all$n)
 
-DB.DL.all$byVR<-DB.DL.all$SpeciesAuthor %in% Mammals.sub$SpeciesAuthor
+# Coerce data into right format
 
-DB.DL.all%>%
-  filter(byVR=="TRUE")
+DB.all<-do.call(cbind.data.frame,DB.all)
+DB.all<-cbind(as.data.frame(Mammals.all[,-4]),DB.all)
+DB.all$E_Smean.SE<-DB.all$E_Smean.SD/sqrt(DB.all$n)
+DB.all$byVR<-DB.all$SpeciesAuthor %in% Mammals.sub$SpeciesAuthor
 
 
-#------------------------------------------------------------------
-#			Some stats
-#------------------------------------------------------------------
-#Maximum value of mean value 
-DB.DL.all[DB.DL.all$E_Smean==max(DB.DL.all$E_Smean,na.rm = TRUE),]
+
+# Some summary statistics of interest
+
+#Maximum value of mean value
+DB.all[DB.all$E_Smean==max(DB.all$E_Smean,na.rm = TRUE),]
+
 #Minimum value
-DB.DL.all[DB.DL.all$E_Smean==min(DB.DL.all$E_Smean,na.rm = TRUE),]
+DB.all[DB.all$E_Smean==min(DB.all$E_Smean,na.rm = TRUE),]
+
 #Number of orders
-DB.DL.all%>%
+DB.all%>%
   count(Order)
 
 #populations
-DB.DL.all%>%as.tibble()
-names(DB.DL.all)
+DB.all%>%as.tibble()
 
-#===================================================================================
-#			PAPER METADATA
-#===================================================================================
+
+# Paper metadata
+
 metadata<-comadre$metadata[,c(1,2,3,6,13,14,15,16,18,25,34)]%>%
   filter(MatrixComposite == c("Individual","Pooled")) %>%
-  filter(SpeciesAuthor %in% DB.DL.all$SpeciesAuthor)%>%
+  filter(SpeciesAuthor %in% DB.all$SpeciesAuthor)%>%
   mutate(NewSpeciesAccepted = str_replace_all(SpeciesAccepted, "_", " "))%>%
   mutate(NewSpeciesAccepted = str_replace_all(NewSpeciesAccepted, " subsp.*", ""))%>%
   group_by(SpeciesAuthor)%>%
@@ -156,7 +111,8 @@ metadata<-comadre$metadata[,c(1,2,3,6,13,14,15,16,18,25,34)]%>%
   as.data.frame()%>%print()
 names(metadata)
 
-#--------------------------------
+# Function to convert strings of authors to et al. if more than 2 authors are present
+
 etaler<-function(X){
   A<-str_split(X,";")[[1]]
   B<-ifelse(length(A) == 1, print(A[1]), 
@@ -164,61 +120,52 @@ etaler<-function(X){
                    print(paste0(A[1]," &",A[2])),
                    print(paste0(A[1]," et al."))))}
 
-#--------------------------------
-
 metadata<-metadata%>%
   mutate(Authors = etaler(Authors))
 
-metadata<-metadata%>%
-  mutate(Authors = etaler(Authors))
 
-metadata<-left_join(metadata,DB.DL.all,by="SpeciesAuthor")
+# Merge datasets
+
+metadata<-left_join(metadata,DB.all,by="SpeciesAuthor")
 colnames(metadata)
 metadata<-metadata[,c(1,12,3,14,16,17,16,17,13,18,19,22,24)]
 metadata[,6]<-metadata[,7]-1
 colnames(metadata)<-c("SpeciesAuthorComadre","SpeciesName","CommonName","Order","E_Smu","E_Smu.SD","E_Ssig","E_Ssig.SD","# matrices","Lambda","Generation.time","Damping.ratio","ByAge")
-#writeClipboard(knitr::kable(metadata))
+
+
+# Check dataset
 
 head(metadata)
 
-#=================================================================================#
-#				SPECIES ANALIZED
-#=================================================================================#
 
-#Check that mean matrices below are singular
-#	it means, they have at least one determinant equal to 0
-#	So, I do not calculate second derivative for them and they should be removed from our analyes
-#		FOR THIS REASON THE TOTAL AMOUNT OF POPULATIONS ARE 40 instead of 44
-#		and the total amount of species are
-DB.DL.all$SpeciesAuthor[c(3,10,19,33)]
+# Check that mean matrices below are singular - if not, we cannot calculate their second derivatives.
+#	FOR THIS REASON THE TOTAL AMOUNT OF POPULATIONS ARE 40 instead of 44.
+
+DB.all$SpeciesAuthor[c(3,10,19,33)]
 
 comadre$metadata[,c(1,2,3)]%>%
   mutate(NewSpeciesAccepted = str_replace_all(SpeciesAccepted, "_", " "))%>%
   mutate(NewSpeciesAccepted = str_replace_all(NewSpeciesAccepted, " subsp.*", ""))%>%
-  filter(SpeciesAuthor %in% DB.DL.all$SpeciesAuthor[-c(3,10,19,33)])%>%
+  filter(SpeciesAuthor %in% DB.all$SpeciesAuthor[-c(3,10,19,33)])%>%
   distinct(NewSpeciesAccepted)%>%print()
 
 metadata%>%
-  filter(SpeciesAuthorComadre %in% DB.DL.all$SpeciesAuthor[-c(3,10,19,33)])
+  filter(SpeciesAuthorComadre %in% DB.all$SpeciesAuthor[-c(3,10,19,33)])
 head(metadata)
-#=================================================================================#
 
 
-#=================================================================================#
-#		DEMOGRAPHIC BUFFERING-LABILITY STATS
-#=================================================================================#
+# Filter data
 
-DB.DL.sub<-DB.DL.all%>%
+DB.sub<-DB.all%>%
   drop_na(.)%>%
   filter(byVR=="TRUE")%>%
   filter(Generation.time != -Inf)%>%print()
 
-#=================================================================================#
-#		DEMOGRAPHIC BUFFERING-LABILITY GRAPHIC
-#=================================================================================#
+DB.all%>%filter(byVR == "TRUE")
 
-DB.DL.all%>%filter(byVR == "TRUE")
-# phylopics
+
+# Graphics for figure 3 from phylopics
+
 # orca<- image_data("880129b5-b78b-40a9-88ad-55f7d1dc823f", size = "512")[[1]]
 # gorilla<-image_data("d9af529d-e426-4c7a-922a-562d57a7872e", size = "512")[[1]]	#Source:http://phylopic.org/image/d9af529d-e426-4c7a-922a-562d57a7872e/
 # Alce<-image_data("1a20a65d-1342-4833-a9dd-1611b9fb383c", size = "512")[[1]]	#Source:http://phylopic.org/image/1a20a65d-1342-4833-a9dd-1611b9fb383c/
@@ -232,54 +179,12 @@ DB.DL.all%>%filter(byVR == "TRUE")
 # Macropus<-image_data("006f91fa-e49f-43f6-a02b-97c6d7b9178a", size = "512")[[1]]	#Source:http://phylopic.org/image/006f91fa-e49f-43f6-a02b-97c6d7b9178a/
 
 
-plot.db.dl<-ggplot(DB.DL.all,aes(x=(E_Smean-1),y= E_Smean-1,color=Order))+
-  #geom_point(aes(color=Order,shape=byVR,size=n),alpha=.7)+
-  geom_point(aes(color=Order),alpha=.7,size=3)+
-  geom_errorbar(aes(ymin =(E_Smean-E_Smean.SE)-1, ymax =(E_Smean+E_Smean.SE)-1),alpha=.7)+
-  geom_errorbarh(aes(xmin = ((E_Smean-E_Smean.SE)-1), xmax = ((E_Smean+E_Smean.SE)-1)),alpha=.7)+
-  scale_color_brewer(palette="Spectral")+
-  scale_x_continuous(trans = log_trans(10),
-                     breaks=c(0,0.0001,0.001,0.001,0.01,0.1,0.2,0.4),
-                     labels=c(1,1.0001,1.001,1.001,1.01,1.1,1.2,1.4),expand = c(.1, .001))+
-  scale_y_continuous(trans = reverselog_trans(10),
-                     breaks=c(0,0.0001,0.001,0.001,0.01,0.1,0.2,0.4),
-                     labels=c(0,"-0.0001",-0.001,-0.001,-0.01,-0.1,-0.2,-0.4),expand = c(.1, .001))+
-  annotation_logticks() + 
-  #ylab(bquote("Relatative effect of environemtal variation ("~sum(E[a[ij]]^S^""[sigma]~")")))+
-  #xlab(bquote("Relatative effect of environemtal variation ("~sum(E[a[ij]]^S^""[mu]~")")))+
-  ylab(expression("-    " %<-% "  "~Sigma~"E"^"s"^~sigma~"  " %->%  "  +")) +
-  xlab(expression("(More Buffered)            -       " %<-% "        "~Sigma~"E"^"s"^~mu~"        " %->%  "       +            (More Labile)")) +
-  #scale_shape_manual(values=c(1,19),labels=c("Yes","No"))+
-  theme_bw(base_family = "Times",base_size = 14)+
-  #labs(Size= "#Matrices",color = "Order", Shape="")+
-  guides(
-    color = guide_legend(order = 1),
-    colour = guide_legend(title="Order"),
-    #   shape = guide_legend(order = 2),
-    #	colour = guide_legend(title="#Vital rates"),
-    size = guide_legend(order = 3),
-    size= guide_legend(title="#Matrices"))+
-  labs(
-    #shape= "Vital rates",
-    colour = "Order",
-    size="# Matrices")
-
-x11(9,4);plot.db.dl
-#ggsave("DB-DL continuum.svg", width = 25, height = 15, units = "cm")
-#dev.off()
-
-
-#=================================================================================#
-# SECOND DERIVATIVES
-#=================================================================================#
-
-Mammals.matrizes.all.SDs<-lapply(Mammals.all$IDs,getAs.from.IDlist)
+# Generate empty lists
 
 outputs2<-outputs1<-list()
 
-#------------------------------------------
-# Updated Max_var_scale
-#------------------------------------------
+
+# Updated Max_var_scale function
 
 Max_var_scale2<-function(X){
   varmxcorrected<-(splitA(var2(X))$T*
@@ -290,9 +195,8 @@ Max_var_scale2<-function(X){
 }
 
 
-#------------------------------------------------------------------------------------
-# Parte 1
-#------------------------------------------------------------------------------------
+# Calculate parameter matrices
+
 for (i in 1:dim(Mammals.all)[1]){
   print(i)
   tryCatch({
@@ -310,9 +214,10 @@ for (i in 1:dim(Mammals.all)[1]){
   },error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
   #mean.mx<-NULL
 }
-#------------------------------------------------------------------------------------
-# Parte 2
-#------------------------------------------------------------------------------------
+
+
+# Calculate derivatives
+
 for (i in 1:dim(Mammals.all)[1]){
   print(i)
   tryCatch({
@@ -333,27 +238,8 @@ SDs<-left_join(
   do.call(rbind,outputs2),do.call(rbind,outputs1),
   by=c("rows2","SpeciesAuthor"))
 
- # SDs<-SDs%>%
- #   filter(means>0)%>%
- #   drop_na(.)%>%
- #   filter(SpeciesAuthor %in% Mammals.sub$SpeciesAuthor)
- # 
- # SDs$Sec.derivative.bin<-SDs$Sec.derivative
- # SDs$Sec.derivative.bin[SDs$Sec.derivative < -1]=-1
- # SDs$Sec.derivative.bin[SDs$Sec.derivative > 1]=1
- # SDs$age<-as.numeric(as.character(SDs$age))
- # 
- # SDs$Sec.derivative.bin<-SDs$Sec.derivative
- # SDs$Sec.derivative.bin[SDs$Sec.derivative < -1]=-1
- # SDs$Sec.derivative.bin[SDs$Sec.derivative > 1]=1
- # SDs$age<-as.numeric(as.character(SDs$age))
-###############################################
-###############################################
-###############################################
 
-#Elasticities (Maja)
-
-#par(mfrow=c(4,4))
+# Build individual figures for all mammals
  
 #Blue Monkey
 
@@ -1081,287 +967,4 @@ gCM3 <- ggplot(datagCM3, aes(x = Var1, y = Var2)) +
   scale_size_continuous(name = "|Self-second derivative|", range = c(1, 15), breaks = c(0.2, 0.4, 0.6, 0.8))
 
 gCM3
-
-max(datagBM3$Elasticity)
-min(datagBM3$Elasticity)
-max(datagBM3$Sec.derivative)
-min(datagBM3$Sec.derivative)
-
-max(datagCGS3$Elasticity)
-min(datagCGS3$Elasticity)
-max(datagCGS3$Sec.derivative)
-min(datagCGS3$Sec.derivative)
-
-max(datagEC3$Elasticity)
-min(datagEC3$Elasticity)
-max(datagEC3$Sec.derivative)
-min(datagEC3$Sec.derivative)
-
-max(datagHS3$Elasticity)
-min(datagHS3$Elasticity)
-max(datagHS3$Sec.derivative)
-min(datagHS3$Sec.derivative)
-
-max(datagKW3$Elasticity)
-min(datagKW3$Elasticity)
-max(datagKW3$Sec.derivative)
-min(datagKW3$Sec.derivative)
-
-max(datagMS3$Elasticity)
-min(datagMS3$Elasticity)
-max(datagMS3$Sec.derivative)
-min(datagMS3$Sec.derivative)
-
-max(datagMG3$Elasticity)
-min(datagMG3$Elasticity)
-max(datagMG3$Sec.derivative)
-min(datagMG3$Sec.derivative)
-
-max(datagNM3$Elasticity)
-min(datagNM3$Elasticity)
-max(datagNM3$Sec.derivative)
-min(datagNM3$Sec.derivative)
-
-max(datagOB3$Elasticity)
-min(datagOB3$Elasticity)
-max(datagOB3$Sec.derivative)
-min(datagOB3$Sec.derivative)
-
-max(datagPB3$Elasticity)
-min(datagPB3$Elasticity)
-max(datagPB3$Sec.derivative)
-min(datagPB3$Sec.derivative)
-
-max(datagRM3$Elasticity)
-min(datagRM3$Elasticity)
-max(datagRM3$Sec.derivative)
-min(datagRM3$Sec.derivative)
-
-max(datagRV3$Elasticity)
-min(datagRV3$Elasticity)
-max(datagRV3$Sec.derivative)
-min(datagRV3$Sec.derivative)
-
-max(datagSS3$Elasticity)
-min(datagSS3$Elasticity)
-max(datagSS3$Sec.derivative)
-min(datagSS3$Sec.derivative)
-
-max(datagTW3$Elasticity)
-min(datagTW3$Elasticity)
-max(datagTW3$Sec.derivative)
-min(datagTW3$Sec.derivative)
-
-max(datagVS3$Elasticity)
-min(datagVS3$Elasticity)
-max(datagVS3$Sec.derivative)
-min(datagVS3$Sec.derivative)
-
-max(datagCM3$Elasticity)
-min(datagCM3$Elasticity)
-max(datagCM3$Sec.derivative)
-min(datagCM3$Sec.derivative)
-
-
-# ordered_SDs <- arrange(SDs, Sec.derivative)
-# 
-# install.packages("gridExtra")
-# library(gridExtra)
-# library(cowplot)
-# Fig3 <- plot_grid(gBM3,gCGS3, gEC3, gHS3, gKW3, gMS3, gMG3, gNM3, gOB3, gPB3,gRM3, gRV3, gSS3, gTW3, gVS3, gCM3, ncol = 4)
-# Fig3
-
-
-# library(ggplot2)
-# library(reshape2)
-# library(viridis)
-# 
-# # Melt the data
-# melted_data <- melt(SDs.all, id.vars = c("Elasticity", "Max.vars", "Meanings", "Sec.derivative.bin"),
-#                     variable.name = "Var1", value.name = "Var2")
-# melted_data <- melted_data[!melted_data$Elasticity==0,]
-# 
-# # Plot the data as a raster plot
-# g <- ggplot(melted_data, aes(x = Var2, y = Var1)) +
-#   geom_raster(aes(fill = Elasticity)) +
-#   scale_fill_viridis(name = "Elasticity", begin = 0.3) +
-#   labs(x = "", y = "", title = "") +
-#   theme_bw() +
-#   theme(
-#     axis.text.x = element_text(size = 15, angle = 0, vjust = 0.3),
-#     axis.text.y = element_text(size = 15),
-#     plot.title = element_text(size = 20)
-#   ) +
-#   scale_x_discrete(limits = c("1", "2", "3", "4")) +
-#   scale_y_reverse()
-# 
-# # Plot the rest of the aesthetics
-# g <- g +
-#   geom_point(
-#     data = SDs.all,
-#     aes(x = Elasticity + 0.001, y = Max.vars, size = abs(Sec.derivative),
-#         color = Sec.derivative.bin, shape = Meanings),
-#     position = position_jitter(width = 0.1, height = 0.1),
-#     alpha = 0.5
-#   ) +
-#   labs(size = "|Second derivative|", color = "Natural selection \n     linearity", shape = "Vital rate") +
-#   scale_size(range = c(3, 6), breaks = c(0, 1, 2), labels = c("0", "1", "2+")) +
-#   scale_shape_manual(values = c(17, 19), labels = c("Recruitment", "Stages transition")) +
-#   scale_x_log10(breaks = c(0, 0.001, 0.01, 0.1, 1),
-#                 labels = c(0, 0.001, 0.01, 0.1, 1),
-#                 limits = c(0.0005, 1.1),
-#                 expand = c(0.1, 0.1)) +
-#   scale_y_sqrt(breaks = c(0, 0.005, 0.007, 0.01, 10, 50, 100, 200, 300),
-#                labels = c(0, 0, "", "", 10, 50, 100, 200, 300),
-#                expand = c(0.1, 0.1)) +
-#   scale_color_manual(
-#     values = c("skyblue", "grey", "tomato"),
-#     labels = c("Stabilizing selection", "Non-informative", "Disruptive selection")
-#   ) +
-#   facet_wrap(. ~ CommonName + SpeciesAuthor, nrow = 5) +
-#   labs(size = "|Second derivative|", color = "Natural selection \n     linearity", shape = "Vital rate") +
-#   theme(
-#     text = element_text(size = 14),
-#     strip.text = element_text(size = 7),
-#     axis.text.x = element_text(angle = 70, hjust = 1)
-#   )
-# 
-# # Display the plot
-# g
-
-
-
-
-
-#----------------------------------------------------------------------
-#		CHECKING AGE PATTERNS
-#----------------------------------------------------------------------
-#SDs$Sec.derivative.bin<-round(SDs$Sec.derivative,0)
-SDs$Sec.derivative.bin<-SDs$Sec.derivative
-SDs$Sec.derivative.bin[SDs$Sec.derivative < -1]=-1
-SDs$Sec.derivative.bin[SDs$Sec.derivative > 1]=1
-SDs$age<-as.numeric(as.character(SDs$age))
-
-unique(SDs$SpeciesAuthor)
-
-SDs.A<-ggplot(SDs,aes(y=Sec.derivative.bin,x=age))+
-  geom_point()+
-  ylim(-1,1)+
-  xlab("Age")+
-  ylab("Second derivative")+
-  geom_hline(yintercept = 0)+
-  facet_grid(Meanings~SpeciesAuthor,scale="free")
-
-SDs.A
-
-#----------------------------------------------------------------------
-#		RESULT
-#----------------------------------------------------------------------
-SDs$Sec.derivative.bin<-round(SDs$Sec.derivative.bin,1)
-SDs$Sec.derivative.bin[SDs$Sec.derivative.bin < 0]=-1
-SDs$Sec.derivative.bin[SDs$Sec.derivative.bin > 0]=1
-SDs$Sec.derivative.bin<-as.factor(SDs$Sec.derivative.bin)
-SDs$age<-as.numeric(as.character(SDs$age))
-
-#Remove duplicated data
-
-
-SDs<-comadre$metadata%>%
-  filter(SpeciesAuthor %in% unique(SDs$SpeciesAuthor))%>%
-  select(c(SpeciesAuthor,SpeciesAccepted,CommonName))%>%
-  unique()%>% 
-  mutate(SpeciesAccepted = str_replace(SpeciesAccepted, "[_]"," "))%>%
-  mutate(SpeciesAccepted = str_replace(SpeciesAccepted, "_subsp.*",""))%>%
-  separate(SpeciesAccepted, c("A", "B"),sep=" ",remove = TRUE)%>%
-  unite(NewSpeciesAccepted,c("A","B"),sep=" ",remove = TRUE)%>%
-  left_join(SDs,.,by=c("SpeciesAuthor"))%>%
-  filter(!(SpeciesAuthor %in% unique(SDs$SpeciesAuthor)[c(2,6,8)]))
-
-
-plot.label<-unique(SDs$CommonName)
-names(plot.label)<-unique(SDs$SpeciesAuthor)
-
-plot.SDs<-SDs%>%
-  filter( !SpeciesAuthor %in% 
-            c("Callospermophilus_lateralis"))%>%
-  ggplot(aes(x=Elasticity, y=Max.vars,label=Meanings,color=Sec.derivative.bin))+
-  # geom_point(aes(x=Elasticity+0.001,y=Max.vars, size = abs(Sec.derivative),color=Sec.derivative.bin,shape=Meanings),alpha=.6)+
-  geom_point(aes(x=Elasticity+0.001,y=Max.vars, size = abs(Sec.derivative),color=Sec.derivative.bin,shape=Meanings),
-             position = position_jitter(width = 0.1, height = 0.1),alpha=.5)+
-  #geom_abline(intercept = 250 , slope = -25)+
-  #geom_smooth()+
-  #geom_text(aes(x=elas_Det+0.001,y=CVcor+0.01,fill=Kind),size=3)+
-  #scale_color_gradient2(midpoint=0, limits=c(-1.05,1.05),low="skyblue", mid="grey",
-  #                 high="tomato", space ="Lab")+
-  #labs(colour = " Second \nderivative")+
-  ylab("Coefficient of Variation")+
-  theme_bw()+
-  scale_size(range=c(3,6),breaks=c(0,1,2),labels=c("0","1","2+"))+
-  scale_shape_manual(values=c(17,19),labels=c("Recruitment","Survival"))+
-  #scale_x_log10(breaks = c(0,0.001,.01,.1,1),labels = c(0,0.001,0.01,.1,1),limits=c(0.005,1.1),expand = c(.1, .1)) +
-  scale_x_log10(breaks = c(0,0.001,.01,.1,1),labels = c(0,0.001,0.01,.1,1),limits=c(0.0005,1.1),expand = c(.1, .1)) +
-  #scale_y_sqrt(breaks = c(0,0.01,10,50,100,200,300),labels = c(0,0,10,50,100,200,300),expand = c(.1, .1))+
-  scale_y_sqrt(breaks = c(0,0.005,0.007,0.01,10,50,100,200,300),labels = c(0,0,"","",10,50,100,200,300),expand = c(.1, .1)) +
-  scale_color_manual(values=c("skyblue", "grey", "tomato"),labels=c("Stabilizing selection","Non-informative","Disruptive selection"))+
-  labs(size= "|Second derivative|",color = "Natural selection \n     linearity", shape="Vital rate")+
-  facet_wrap(.~CommonName+" ")+
-  theme( text=element_text(size=14),
-         strip.text = element_text(size=9),
-         axis.text.x = element_text(angle = 70, hjust = 1))
-
-x11(20,15);plot.SDs
-plot.SDs
-#ggsave("Second derivatives MAIN.svg", width = 30, height = 20, units = "cm")
-dev.off()
-
-
-#---------------------------------------------------------------------
-#	PLOTTING SECOND DERIVATIVES FOR ALL
-#---------------------------------------------------------------------
-
-SDs.all<-SDs%>%
-  filter(means>0)%>%
-  drop_na(.)
-
-SDs.all$Sec.derivative.bin<-SDs.all$Sec.derivative
-SDs.all$Sec.derivative.bin[SDs.all$Sec.derivative < -1]=-1
-SDs.all$Sec.derivative.bin[SDs.all$Sec.derivative > 1]=1
-SDs.all$age<-as.numeric(as.character(SDs.all$age))
-
-SDs.all$Sec.derivative.bin<-round(SDs.all$Sec.derivative.bin,1)
-SDs.all$Sec.derivative.bin[SDs.all$Sec.derivative.bin < 0]=-1
-SDs.all$Sec.derivative.bin[SDs.all$Sec.derivative.bin > 0]=1
-SDs.all$Sec.derivative.bin<-as.factor(SDs.all$Sec.derivative.bin)
-SDs.all$age<-as.numeric(as.character(SDs.all$age))
-
-SDs.all<-
-  comadre$metadata%>%
-  filter(SpeciesAuthor %in% unique(SDs.all$SpeciesAuthor))%>%
-  select(c(SpeciesAuthor,SpeciesAccepted,CommonName))%>%
-  unique()%>% 
-  mutate(SpeciesAccepted = str_replace(SpeciesAccepted, "[_]"," "))%>%
-  mutate(SpeciesAccepted = str_replace(SpeciesAccepted, "_subsp.*",""))%>%
-  separate(SpeciesAccepted, c("A", "B"),sep=" ",remove = TRUE)%>%
-  unite(NewSpeciesAccepted,c("A","B"),sep=" ",remove = TRUE)%>%
-  left_join(SDs.all,.,by=c("SpeciesAuthor"))
-
-SDs.all%>%
-  ggplot(aes(x=Elasticity, y=Max.vars,label=Meanings,color=Sec.derivative.bin))+
-  geom_point(aes(x=Elasticity+0.001,y=Max.vars, size = abs(Sec.derivative),color=Sec.derivative.bin,shape=Meanings),
-             position = position_jitter(width = 0.1, height = 0.1),alpha=.5)+
-  ylab("Coefficient of Variation")+
-  theme_bw()+
-  scale_size(range=c(3,6),breaks=c(0,1,2),labels=c("0","1","2+"))+
-  scale_shape_manual(values=c(17,19),labels=c("Recruitment","Stages transition"))+
-  scale_x_log10(breaks = c(0,0.001,.01,.1,1),labels = c(0,0.001,0.01,.1,1),limits=c(0.0005,1.1),expand = c(.1, .1)) +
-  scale_y_sqrt(breaks = c(0,0.005,0.007,0.01,10,50,100,200,300),labels = c(0,0,"","",10,50,100,200,300),expand = c(.1, .1)) +
-  scale_color_manual(values=c("skyblue", "grey", "tomato"),labels=c("Stabilizing selection","Non-informative","Disruptive selection"))+
-  labs(size= "|Second derivative|",color = "Natural selection \n     linearity", shape="Vital rate")+
-  facet_wrap(.~CommonName+SpeciesAuthor,nrow=5)+
-  theme( text=element_text(size=14),
-         strip.text = element_text(size=7),
-         axis.text.x = element_text(angle = 70, hjust = 1))
-
-#ggsave("Second derivatives Supplement.svg", width = 40, height = 45, units = "cm")
-dev.off()
 
