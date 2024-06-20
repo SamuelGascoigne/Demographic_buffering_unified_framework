@@ -11,7 +11,7 @@ library(phylosignal)
 library(phytools)
 
 #Read in data
-d <- read.csv("buffering.csv")
+d <- read.csv("Supplementary materials/buffering.csv")
 
 #House-keeping
 dim(d)
