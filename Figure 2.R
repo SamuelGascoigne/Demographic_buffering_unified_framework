@@ -250,6 +250,7 @@ figure_2 <- ggplot(metadata, aes(x = Stoch_elas_var, fill = as.factor(Order))) +
   scale_fill_manual(values = order_colors) +
   xlab(expression(paste("-    " %<-% "  "~Sigma~"E"^"s"^~sigma~"  " %->%  "  +"))) +
   ylab("Density") +
+  labs(fill = "Order") +
   theme_bw() +
   theme(
     axis.text = element_blank(),
