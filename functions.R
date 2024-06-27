@@ -88,6 +88,48 @@ elassig <- elassig + ((v[, i + 1] %*% t(w[, i]) * (a-mean(A)))/as.numeric((r[i] 
     out
 }
 
+# The following function to calculate the stochastic population growth rate by simulation
+# was taken from the popbio package.
+
+stochastic_growth_rate_sim <- function(matrices, prob = NULL, maxt = 50000, verbose = FALSE){
+  if (is.list(matrices)) {
+    matrices <- matrix(unlist(matrices), ncol = length(matrices))
+  }
+  s <- sqrt(dim(matrices)[1]) ## number of stage classes
+  n <- dim(matrices)[2] ## number of matrixes
+  # default equal probabilities
+  if (is.null(prob)) {
+    prob <- rep(1 / n, n)
+  }
+
+  ##  Simulation
+  r <- numeric(maxt)
+  n0 <- rep(1, times = s)
+  for (t in 1:maxt)
+  {
+    if (verbose) {
+      if (t == 1 || t %% 10000 == 0) {
+        message("Calculating stochastic growth at time ", t)
+      }
+    }
+    col <- sample(1:n, 1, prob = prob)
+    A <- matrix(matrices[, col], nrow = s)
+    n0 <- A %*% n0
+    N <- sum(n0)
+    r[t] <- log(N)
+    n0 <- n0 / N
+  }
+  loglsim <- mean(r)
+  dse <- 1.96 * sqrt(var(r) / maxt)
+  CI <- c(loglsim - dse, loglsim + dse)
+
+  ## output...
+  stoch <- exp(loglsim)
+  
+  return(stoch)
+  
+}
+
 
 # Calculate stochastic elasticities with respect to variances
 

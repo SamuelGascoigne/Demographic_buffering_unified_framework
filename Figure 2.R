@@ -54,22 +54,36 @@ getAs.from.IDlist<-function(X){
 DB.all<-mxs<-NULL
 
 for (i in 1:dim(Mammals.all)[1]){
+  
   print(i)
+  
   tryCatch({
-    mxs<-replicate(50,stoch.sens_mean(sample(getAs.from.IDlist(Mammals.all$IDs[i]))[1:3]))
-  },error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
+    
+    mxs<-replicate(50, stoch.sens_mean(sample(getAs.from.IDlist(Mammals.all$IDs[i]))[1:3]))
+  
+    },
+    error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
+  
   tryCatch({
+    
     DB.all$E_Smean[i]<-mean(unlist(lapply(array_to_matrix(mxs),sum)))
-    DB.all$E_Smean.SD[i]<-sd(1-unlist(lapply(array_to_matrix(mxs),sum)))
-  },error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
+    DB.all$E_S_SD[i]<-sd(1-unlist(lapply(array_to_matrix(mxs),sum)))
+    DB.all$E_S_SE[i]<-DB.all$E_S_SD[i]/sqrt(50)
+  
+    },
+    error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
+  
   tryCatch({
+    
     DB.all$Lambda[i]<-lambda(mean(getAs.from.IDlist(Mammals.all$IDs[i])))
-    DB.all$Generation.time[i]<-generation.time(mean(getAs.from.IDlist(Mammals.all$IDs[i])))
-    DB.all$resilience.999[i]<- convt(mean(getAs.from.IDlist(Mammals.all$IDs[i])), accuracy=.01)[1]
-    DB.all$resilience.90[i]<- convt(mean(getAs.from.IDlist(Mammals.all$IDs[i])), accuracy=.1)[1]
-    DB.all$resilience.damping[i]<-damping.ratio(mean(getAs.from.IDlist(Mammals.all$IDs[i])))
-  },error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
+    DB.all$Stoch_lambda[i]<-stochastic_growth_rate_sim(getAs.from.IDlist(Mammals.all$IDs[i]), 
+                                              verbose = FALSE)
+  
+    },
+    error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
+  
   mxs<-NULL
+  
 }
 
 
@@ -77,9 +91,56 @@ for (i in 1:dim(Mammals.all)[1]){
 
 DB.all<-do.call(cbind.data.frame,DB.all)
 DB.all<-cbind(as.data.frame(Mammals.all[,-4]),DB.all)
-DB.all$E_Smean.SE<-DB.all$E_Smean.SD/sqrt(DB.all$n)
-DB.all$byVR<-DB.all$SpeciesAuthor %in% Mammals.sub$SpeciesAuthor
 
+
+
+
+
+
+
+
+# Quantify measures of demographic buffering
+
+DB.all<-mxs<-NULL
+
+for (i in 1:dim(Mammals.all)[1]){
+  
+  print(i)
+  
+  tryCatch({
+    
+    mxs<-replicate(50, stoch.sens_sig(sample(getAs.from.IDlist(Mammals.all$IDs[i]))[1:3]))
+    
+  },
+  error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
+  
+  tryCatch({
+    
+    DB.all$E_Smean[i]<-mean(unlist(lapply(array_to_matrix(mxs),sum)))
+    DB.all$E_S_SD[i]<-sd(1-unlist(lapply(array_to_matrix(mxs),sum)))
+    DB.all$E_S_SE[i]<-DB.all$E_S_SD[i]/sqrt(50)
+    
+  },
+  error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
+  
+  tryCatch({
+    
+    DB.all$Lambda[i]<-lambda(mean(getAs.from.IDlist(Mammals.all$IDs[i])))
+    DB.all$Stoch_lambda[i]<-stochastic_growth_rate_sim(getAs.from.IDlist(Mammals.all$IDs[i]), 
+                                                       verbose = FALSE)
+    
+  },
+  error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
+  
+  mxs<-NULL
+  
+}
+
+
+# Coerce data into right format
+
+DB.all<-do.call(cbind.data.frame,DB.all)
+DB.all<-cbind(as.data.frame(Mammals.all[,-4]),DB.all)
 
 
 # Some summary statistics of interest
@@ -128,9 +189,12 @@ metadata<-metadata%>%
 
 metadata<-left_join(metadata,DB.all,by="SpeciesAuthor")
 colnames(metadata)
-metadata<-metadata[,c(1,12,3,14,16,17,16,17,13,18,19,22,24)]
-metadata[,6]<-metadata[,7]-1
-colnames(metadata)<-c("SpeciesAuthorComadre","SpeciesName","CommonName","Order","E_Smu","E_Smu.SD","E_Ssig","E_Ssig.SD","# matrices","Lambda","Generation.time","Damping.ratio","ByAge")
+
+
+# Filter and reorder metadata dataframe columns, then change column names
+
+metadata<-metadata[,c(2, 3, 1, 4, 15, 19, 20, 16, 18)]
+colnames(metadata)<-c("Species","Common_name","Species_COMADRE","Order","# matrices","Lambda", "Stochastic_lambda", "Stoch_elas_var", "Stoch_elas_var_SE")
 
 
 # Check dataset
@@ -141,39 +205,47 @@ head(metadata)
 # Check that mean matrices below are singular - if not, we cannot calculate their second derivatives.
 #	FOR THIS REASON THE TOTAL AMOUNT OF POPULATIONS ARE 40 instead of 44.
 
-DB.all$SpeciesAuthor[c(3,10,19,33)]
+# DB.all$SpeciesAuthor[c(3,10,19,33)]
+# 
+# comadre$metadata[,c(1,2,3)]%>%
+#   mutate(NewSpeciesAccepted = str_replace_all(SpeciesAccepted, "_", " "))%>%
+#   mutate(NewSpeciesAccepted = str_replace_all(NewSpeciesAccepted, " subsp.*", ""))%>%
+#   filter(SpeciesAuthor %in% DB.all$SpeciesAuthor[-c(3,10,19,33)])%>%
+#   distinct(NewSpeciesAccepted)%>%print()
 
-comadre$metadata[,c(1,2,3)]%>%
-  mutate(NewSpeciesAccepted = str_replace_all(SpeciesAccepted, "_", " "))%>%
-  mutate(NewSpeciesAccepted = str_replace_all(NewSpeciesAccepted, " subsp.*", ""))%>%
-  filter(SpeciesAuthor %in% DB.all$SpeciesAuthor[-c(3,10,19,33)])%>%
-  distinct(NewSpeciesAccepted)%>%print()
-
-metadata%>%
-  filter(SpeciesAuthorComadre %in% DB.all$SpeciesAuthor[-c(3,10,19,33)])
-head(metadata)
+# metadata%>%
+#   filter(SpeciesAuthorComadre %in% DB.all$SpeciesAuthor[-c(3,10,19,33)])
+# head(metadata)
 
 
 # Plot figure 2
 
-metadata <- metadata[!is.nan(metadata$E_Ssig), ]
+metadata <- metadata[!is.nan(metadata$Stoch_elas_var), ]
 
-metadata$E_SsigNEG <- NA
-metadata$E_SsigNEG <- 1-metadata$E_Ssig
 
 
 # Define the color palette
 
 order_colors <- viridis(length(unique(metadata$Order)))
 
-figure_2 <- ggplot(metadata, aes(x = E_SsigNEG, fill = as.factor(Order))) +
+set.seed(1)
+
+figure_2 <- ggplot(metadata, aes(x = Stoch_elas_var, fill = as.factor(Order))) +
   geom_density(fill = "purple", alpha = 0.05) +
-  geom_point(aes(y = 21), position = position_jitter(height = 10),
+  geom_errorbar(aes(xmin = Stoch_elas_var - Stoch_elas_var_SE, 
+                    xmax = Stoch_elas_var + Stoch_elas_var_SE,
+                    y = 12),
+                position = position_jitter(height = 11, seed = 1),
+                width = 0,
+                alpha = 0.6) +
+  geom_point(aes(y = 12), position = position_jitter(height = 11, seed = 1),
              shape = 21,
              size = 2.5,
              stroke = 1.5,
-             alpha = 0.6) +
-  scale_y_continuous(expand = c(0, 1)) +
+             alpha = 1) +
+
+
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 25)) +
   scale_x_continuous(expand = c(0.002, 0.002)) +
   scale_fill_manual(values = order_colors) +
   xlab(expression(paste("-    " %<-% "  "~Sigma~"E"^"s"^~sigma~"  " %->%  "  +"))) +
