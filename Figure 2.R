@@ -202,21 +202,6 @@ colnames(metadata)<-c("Species","Common_name","Species_COMADRE","Order","# matri
 head(metadata)
 
 
-# Check that mean matrices below are singular - if not, we cannot calculate their second derivatives.
-#	FOR THIS REASON THE TOTAL AMOUNT OF POPULATIONS ARE 40 instead of 44.
-
-# DB.all$SpeciesAuthor[c(3,10,19,33)]
-# 
-# comadre$metadata[,c(1,2,3)]%>%
-#   mutate(NewSpeciesAccepted = str_replace_all(SpeciesAccepted, "_", " "))%>%
-#   mutate(NewSpeciesAccepted = str_replace_all(NewSpeciesAccepted, " subsp.*", ""))%>%
-#   filter(SpeciesAuthor %in% DB.all$SpeciesAuthor[-c(3,10,19,33)])%>%
-#   distinct(NewSpeciesAccepted)%>%print()
-
-# metadata%>%
-#   filter(SpeciesAuthorComadre %in% DB.all$SpeciesAuthor[-c(3,10,19,33)])
-# head(metadata)
-
 
 # Plot figure 2
 
@@ -234,18 +219,16 @@ figure_2 <- ggplot(metadata, aes(x = Stoch_elas_var, fill = as.factor(Order))) +
   geom_density(fill = "purple", alpha = 0.05) +
   geom_errorbar(aes(xmin = Stoch_elas_var - Stoch_elas_var_SE, 
                     xmax = Stoch_elas_var + Stoch_elas_var_SE,
-                    y = 12),
-                position = position_jitter(height = 11, seed = 1),
+                    y = 15),
+                position = position_jitter(height = 14, seed = 3),
                 width = 0,
                 alpha = 0.6) +
-  geom_point(aes(y = 12), position = position_jitter(height = 11, seed = 1),
+  geom_point(aes(y = 15), position = position_jitter(height = 14, seed = 3),
              shape = 21,
              size = 2.5,
              stroke = 1.5,
              alpha = 1) +
-
-
-  scale_y_continuous(expand = c(0, 0), limits = c(0, 25)) +
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 32)) +
   scale_x_continuous(expand = c(0.002, 0.002)) +
   scale_fill_manual(values = order_colors) +
   xlab(expression(paste("-    " %<-% "  "~Sigma~"E"^"s"^~sigma~"  " %->%  "  +"))) +
@@ -253,10 +236,10 @@ figure_2 <- ggplot(metadata, aes(x = Stoch_elas_var, fill = as.factor(Order))) +
   labs(fill = "Order") +
   theme_bw() +
   theme(
-    axis.text = element_blank(),
-    axis.title = element_text(size = 18, face = "bold"),
-    legend.title = element_text(size = 18, color = "black"),
-    legend.text = element_text(size = 18, color = "black")
+  #axis.text = element_blank(),
+  axis.title = element_text(size = 18, face = "bold"),
+  legend.title = element_text(size = 18, color = "black"),
+  legend.text = element_text(size = 18, color = "black")
   )
 
 figure_2
