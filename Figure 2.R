@@ -49,55 +49,6 @@ getAs.from.IDlist<-function(X){
 
 
 
-# Quantify measures of demographic buffering
-
-DB.all<-mxs<-NULL
-
-for (i in 1:dim(Mammals.all)[1]){
-  
-  print(i)
-  
-  tryCatch({
-    
-    mxs<-replicate(50, stoch.sens_mean(sample(getAs.from.IDlist(Mammals.all$IDs[i]))[1:3]))
-  
-    },
-    error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
-  
-  tryCatch({
-    
-    DB.all$E_Smean[i]<-mean(unlist(lapply(array_to_matrix(mxs),sum)))
-    DB.all$E_S_SD[i]<-sd(1-unlist(lapply(array_to_matrix(mxs),sum)))
-    DB.all$E_S_SE[i]<-DB.all$E_S_SD[i]/sqrt(50)
-  
-    },
-    error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
-  
-  tryCatch({
-    
-    DB.all$Lambda[i]<-lambda(mean(getAs.from.IDlist(Mammals.all$IDs[i])))
-    DB.all$Stoch_lambda[i]<-stochastic_growth_rate_sim(getAs.from.IDlist(Mammals.all$IDs[i]), 
-                                              verbose = FALSE)
-  
-    },
-    error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
-  
-  mxs<-NULL
-  
-}
-
-
-# Coerce data into right format
-
-DB.all<-do.call(cbind.data.frame,DB.all)
-DB.all<-cbind(as.data.frame(Mammals.all[,-4]),DB.all)
-
-
-
-
-
-
-
 
 # Quantify measures of demographic buffering
 
@@ -220,12 +171,11 @@ figure_2 <- ggplot(metadata, aes(x = Stoch_elas_var, fill = as.factor(Order))) +
   geom_errorbar(aes(xmin = Stoch_elas_var - Stoch_elas_var_SE, 
                     xmax = Stoch_elas_var + Stoch_elas_var_SE,
                     y = 15),
-                position = position_jitter(height = 14, seed = 3),
+                position = position_jitter(height = 14, seed = 31),
                 width = 0,
                 alpha = 0.6) +
-  geom_point(aes(y = 15), position = position_jitter(height = 14, seed = 3),
+  geom_point(aes(y = 15, size = as.numeric(`# matrices`)), position = position_jitter(height = 14, seed = 31),
              shape = 21,
-             size = 2.5,
              stroke = 1.5,
              alpha = 1) +
   scale_y_continuous(expand = c(0, 0), limits = c(0, 32)) +
@@ -233,14 +183,14 @@ figure_2 <- ggplot(metadata, aes(x = Stoch_elas_var, fill = as.factor(Order))) +
   scale_fill_manual(values = order_colors) +
   xlab(expression(paste("-    " %<-% "  "~Sigma~"E"^"s"^~sigma~"  " %->%  "  +"))) +
   ylab("Density") +
-  labs(fill = "Order") +
+  labs(fill = "Order", size = "# matrices") +
   theme_bw() +
   theme(
-  #axis.text = element_blank(),
-  axis.title = element_text(size = 18, face = "bold"),
-  legend.title = element_text(size = 18, color = "black"),
-  legend.text = element_text(size = 18, color = "black")
+  axis.text = element_text(size = 24),
+  axis.title = element_text(size = 30, face = "bold"),
+  legend.title = element_text(size = 30, color = "black"),
+  legend.text = element_text(size = 24, color = "black")
   )
 
-figure_2
+figure_2 # 1,600x800
 
