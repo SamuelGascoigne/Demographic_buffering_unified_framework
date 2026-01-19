@@ -19,7 +19,7 @@ set.seed(1234)
 ### Note SigmaE^s^sigma is not modulus and is based on matrix elements. So, it is always negative (very unlikely to be positive) and higher negative values means higher negative contribution to lambda
 
 figure_1a <- ggplot(Esig_df, aes(x = Esig)) +
-  geom_density(fill = "purple", alpha = 0.05) +
+  #geom_density(fill = "purple", alpha = 0.05) +
   geom_point(aes(fill = Esig, y = 21), position = position_jitter(height = .6, seed = 31),
              shape = 21,
              size = 2.5,
