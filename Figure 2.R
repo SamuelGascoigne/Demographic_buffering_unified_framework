@@ -167,7 +167,6 @@ order_colors <- viridis(length(unique(metadata$Order)))
 set.seed(1)
 
 figure_2 <- ggplot(metadata, aes(x = Stoch_elas_var, fill = as.factor(Order))) +
-  geom_density(fill = "purple", alpha = 0.05) +
   geom_errorbar(aes(xmin = Stoch_elas_var - Stoch_elas_var_SE, 
                     xmax = Stoch_elas_var + Stoch_elas_var_SE,
                     y = 15),
@@ -182,15 +181,17 @@ figure_2 <- ggplot(metadata, aes(x = Stoch_elas_var, fill = as.factor(Order))) +
   scale_x_continuous(expand = c(0.002, 0.002)) +
   scale_fill_manual(values = order_colors) +
   xlab(expression(paste("-    " %<-% "  "~Sigma~"E"^"s"^~sigma~"  " %->%  "  +"))) +
-  ylab("Density") +
+  ylab(NULL) +
   labs(fill = "Order", size = "# matrices") +
   theme_bw() +
   theme(
-  axis.text = element_text(size = 24),
-  axis.title = element_text(size = 30, face = "bold"),
-  legend.title = element_text(size = 30, color = "black"),
-  legend.text = element_text(size = 24, color = "black")
+    axis.text.y=element_blank(),
+    axis.text = element_text(size = 24),
+    axis.title = element_text(size = 30, face = "bold"),
+    legend.title = element_text(size = 30, color = "black"),
+    legend.text = element_text(size = 24, color = "black")
   )
 
 figure_2 # 1,600x800
 
+# ggsave("Figures/figure2_raw.pdf",device="pdf",width=1600,height=800,unit="px",dpi=600)
