@@ -41,3 +41,7 @@ package_vec <- c("ggplot2",
 # Use the install_load_package function to call/install all of the specified packages.
 
 sapply(package_vec, install_load_package)
+
+
+# Define a seed 
+set.seed(123)
