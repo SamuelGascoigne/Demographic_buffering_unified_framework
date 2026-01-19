@@ -19,7 +19,7 @@ set.seed(1234)
 ### Note SigmaE^s^sigma is not modulus and is based on matrix elements. So, it is always negative (very unlikely to be positive) and higher negative values means higher negative contribution to lambda
 
 figure_1a <- ggplot(Esig_df, aes(x = Esig)) +
-  #geom_density(fill = "purple", alpha = 0.05) +
+  geom_density(fill = "purple", alpha = 0.05) +
   geom_point(aes(fill = Esig, y = 21), position = position_jitter(height = .6, seed = 31),
              shape = 21,
              size = 2.5,
@@ -39,10 +39,9 @@ figure_1a <- ggplot(Esig_df, aes(x = Esig)) +
     legend.title = element_text(size = 18, color = "black"),
     legend.text = element_text(size = 18, color = "black")
   )
+
 figure_1a
-
-
-ggsave("Figures/figure1aV3_raw.pdf",device="pdf",width=8.44,height=3.5,unit="in",dpi=600)
+# ggsave("Figures/figure1aV3_raw.pdf",device="pdf",width=8.44,height=3.5,unit="in",dpi=600)
 
 # Now it is time to build figure 1b and 1c.
 
@@ -99,7 +98,7 @@ figure_1b <- ggplot(elas_df, aes(x = Var2, y = Var1)) +
   scale_y_reverse()
 
 figure_1b
-ggsave("Figures/figure1b_raw.pdf",device="pdf",width=91.4,height=74.2,unit="mm",dpi=600)
+# ggsave("Figures/figure1b_raw.pdf",device="pdf",width=91.4,height=74.2,unit="mm",dpi=600)
 
 
 figure_1c <- ggplot(elas_df, aes(x = Var2, y = Var1)) + 
@@ -115,6 +114,6 @@ figure_1c <- ggplot(elas_df, aes(x = Var2, y = Var1)) +
   scale_size_continuous(name = "Second-order derivative", range = c(15, 1))
 
 figure_1c
-ggsave("Figures/figure1c_raw.pdf",device="pdf",width=120.4,height=74.2,unit="mm",dpi=600)
+# ggsave("Figures/figure1c_raw.pdf",device="pdf",width=120.4,height=74.2,unit="mm",dpi=600)
 
 
